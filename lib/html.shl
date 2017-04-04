@@ -133,7 +133,7 @@ function deftags() {
         eval "function $tag() { tag $tag \"\$@\"; }"
     done
 }
-deftags ul li div span pre h{1..6} table thead tbody tr td title
+deftags ul li div span pre h{1..6} p table thead tbody tr td title
 function link() { with href="${1/#\//$SCRIPT_NAME/}" tag a "${@:2}"; }
 
 function svg() {
