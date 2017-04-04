@@ -1,0 +1,200 @@
+#!/bin/bash
+function ...() { 
+    local ln
+    while IFS='' read -r ln; do printf "%s\n" "$ln"; done
+    if [ -n "$ln" ]; then printf "%s" "$ln"; fi
+}
+
+declare -A POST COOKIES
+declare -a JS_LIBS=( ) CSS_LIBS=( )
+declare ATTRS= CLASSES= JS_INIT=
+
+IFSBAK="$IFS"
+
+function parse_cookies() {
+    local -a cookies=( )
+    local cookie
+    IFS="; " cookies=( ${HTTP_COOKIE-;} ) IFS="$IFSBAK"
+    for cookie in "${cookies[@]}"; do
+        case "$cookie" in
+            *=*) COOKIES["${cookie%%=*}"]="${cookie#*=}";;
+        esac
+    done
+}
+function read_input() {
+    local input="$(...)" assoc val
+    local -a vars=( )
+    case "$CONTENT_TYPE" in
+        'multipart/form-data'*)
+            local delim="--${CONTENT_TYPE#*boundary=}" part headers data
+            input="${input#*$delim}"
+            while [[ -n "$input" && "${input:0:2}" != -- ]]; do
+                part="${input%%$delim*}"
+                input="${input#$part}"
+                input="${input#$delim}"
+                headers="${part%%$'\r\n\r\n'*}"
+                data="${part#*$'\r\n\r\n'}"
+                data="${data//$'\r\n'/$'\n'}"
+                postName="${headers#* name=\"}"
+                postName="${postName%%\"*}"
+                POST[$postName]="${data%$'\n'}"
+            done
+            ;;
+        *)
+            local delim=$'\r\n\r\n'
+            IFS='&' vars=( '.=.' ${input#*$delim} ) IFS="$IFSBAK"
+            for assoc in "${vars[@]}"; do
+                val="${assoc#*=}"
+                val="${val//+/ }"
+	        POST[${assoc%%=*}]="$(echo -e "${val//%/\\x}")"
+            done
+            ;;
+    esac
+}
+[ "$REQUEST_METHOD" == POST ] && read_input
+parse_cookies
+
+function tag() { printf "%s" "<$1${CLASSES:+ class=\"$CLASSES\"}$ATTRS>$(ATTRS= CLASSES= "${@:2}")</$1>"; }
+function etag() { printf "%s" "<$1${CLASSES:+ class=\"$CLASSES\"}$ATTRS />"; }
+function with() {
+    local ATTRS="$ATTRS"
+    while [[ "$1" == *=* ]]; do
+	ATTRS+=" ${1%%=*}=\"${1#*=}\""
+	shift
+    done
+    "$@"
+}
+function withClasses() {
+    local CLASSES="${CLASSES:+$CLASSES }$1"
+    "${@:2}"
+}
+function text() { printf "%s" "$*"; }
+function ::() {
+    local -a cmd
+    while (( $# > 0 )); do
+        cmd=( )
+        while (( $# > 0 )) && [ "$1" != :: ]; do
+            cmd+=( "$1" )
+            shift
+        done
+        shift
+        if (( ${#cmd[@]} > 0 )); then "${cmd[@]}"; fi
+    done
+}
+function js() { with type=text/javascript tag script :: echo :: "$@" :: echo; }
+function js-::() {
+    local -a cmd
+    while (( $# > 0 )); do
+        cmd=( )
+        while (( $# > 0 )) && [ "$1" != :: ]; do
+            cmd+=( "$1" )
+            shift
+        done
+        shift
+        js-expr "${cmd[@]}"
+    done
+}
+function js-expr() { "js-$1" "${@:2}"; }
+
+function header() { printf "%s: %s\n" "$1" "${*:2}"; }
+function html() {
+    echo "<!DOCTYPE html>"
+    tag html "$@"
+}
+function head() {
+    {
+        for css in "${CSS_LIBS[@]}"; do
+            with type=text/css rel=stylesheet href="$SCRIPT_NAME/static/$css" etag link
+        done
+        for js in "${JS_LIBS[@]}"; do
+            case "$js" in
+                nodefer:*) with type=text/javascript src="$SCRIPT_NAME/static/${js#nodefer:}" tag script;;
+                *) with type=text/javascript src="$SCRIPT_NAME/static/$js" tag script;;
+            esac
+        done
+        with charset=UTF-8 etag meta
+        "$@"
+    } | tag head ...
+}
+function favicon() {
+    with rel=icon href="$1" etag link
+}
+
+function body() {
+    {
+        ATTRS= CLASSES=
+        "$@"
+        js-onload text "$JS_INIT;"
+    } | tag body ...
+}
+function deftags() {
+    local tag
+    for tag; do
+        eval "function $tag() { tag $tag \"\$@\"; }"
+    done
+}
+deftags ul li div span pre h{1..6} table thead tbody tr td title
+function link() { with href="${1/#\//$SCRIPT_NAME/}" tag a "${@:2}"; }
+
+function svg() {
+    with version="1.1" baseProfile="full" viewBox="0 0 100 100" \
+	 xmlns="http://www.w3.org/2000/svg" \
+	 xmlns:xlink="http://www.w3.org/1999/xlink" \
+	 tag svg "$@"
+}
+
+function fieldset() {
+    tag fieldset :: tag legend text "$1" :: "${@:2}"
+}
+function input() { with type="$1" name="$2" ${3+value="$3"} etag input; }
+function textinput() { input text "$1"; }
+function submit() { with value="$1" type=submit etag input; }
+function hiddenInput() { input hidden "$1" "$2"; }
+
+function option() { 
+    local selected=
+    if [ "$1" == "${SELECTED_OPTION:-}" ]; then
+        selected=true
+    fi
+    with ${selected:+selected=selected} value="$1" tag option "${@:2}"
+}
+function choose() { with name="$1" tag select "${@:2}"; }
+
+HTML_FORM_DIR=forms
+function get-form() { 
+    with name="$1" method=POST tag form \
+        :: input hidden form-id "$1" \
+        :: source "$HTML_FORM_DIR/$1" GET "${@:2}"
+}
+function post-form() { [ -r "$HTML_FORM_DIR" ] && source "$HTML_FORM_DIR/$1" POST "${@:2}"; }
+function form-vars() {
+    local var
+    local -a vars=( )
+    for var; do
+        case "$var" in
+            GET|POST) break;;
+            *) vars+=( "$var" );;
+        esac
+        shift
+    done
+    local action="$1"
+    shift
+    case "$action" in        
+        GET)
+            local i=0 val
+            for val; do
+                eval "${vars[i]}=\"\$val\""
+                hiddenInput "${vars[i]}" "${!vars[i]}"
+                ((i++))
+            done
+            ;;
+        POST)
+            for var in "${vars[@]}"; do
+                eval "$var=\"\${POST[$var]}\""
+            done
+            ;;
+    esac
+}
+
+
+
