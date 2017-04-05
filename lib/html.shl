@@ -11,6 +11,16 @@ declare ATTRS= CLASSES= JS_INIT=
 
 IFSBAK="$IFS"
 
+declare -A INCLUDES=( )
+function include() {
+    for dep; do
+        [ "${INCLUDES[$dep]:+x}" == '' ] || {
+            source "lib/$dep.shl"
+            INCLUDES[$dep]=included
+        }
+    done
+}
+
 function parse_cookies() {
     local -a cookies=( )
     local cookie
