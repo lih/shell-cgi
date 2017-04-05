@@ -14,8 +14,9 @@ IFSBAK="$IFS"
 declare -A INCLUDES=( )
 function include() {
     for dep; do
-        [ "${INCLUDES[$dep]:+x}" == '' ] || {
-            source "lib/$dep.shl"
+        [ "${INCLUDES[$dep]:+x}" == x ] || {
+            echo "Including $dep" >&2
+	    source "lib/$dep.shl"
             INCLUDES[$dep]=included
         }
     done
