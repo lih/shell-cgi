@@ -9,7 +9,7 @@ EOF
 SQL_ERROR=
 function sql() {
     local err="$(mktemp)"
-    if mysql --batch --skip-column-names -u"$SQL_USER" -h"$SQL_HOST" -p"$SQL_PASSWORD" "$SQL_DATABASE" 2>"$err" <<EOF
+    if mysql --batch --skip-column-names -u"$SQL_USER" -h"$SQL_HOST" -p"$SQL_PASSWORD" "$SQL_DATABASE_NAME" 2>"$err" <<EOF
 $*
 EOF
     then SQL_ERROR=
