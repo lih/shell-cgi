@@ -55,9 +55,9 @@ parse_cookies
 
 declare -A INCLUDES=( )
 function include() {
+    local dep
     for dep; do
-        [ "${INCLUDES[$dep]:+x}" == x ] || {
-            echo "Including $dep" >&2
+        [ "${INCLUDES[$dep]:+x}" == x ] || { 
 	    source "lib/$dep.shl"
             INCLUDES[$dep]=included
         }
