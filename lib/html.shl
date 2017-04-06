@@ -114,7 +114,17 @@ function get-form() {
         :: input hidden form-id "$1" \
         :: source "$HTML_FORM_DIR/$1" GET "${@:2}"
 }
-function post-form() { [ -r "$HTML_FORM_DIR" ] && source "$HTML_FORM_DIR/$1" POST "${@:2}"; }
+function post-form() { 
+    local form
+    [ -r "$HTML_FORM_DIR" ] && {
+	if (( $# == 0 )); then
+	    form="${POST[form-id]}"
+	else
+	    form="$1"
+	fi 
+	source "$HTML_FORM_DIR/$form" POST
+    }
+}
 function form-vars() {
     local var
     local -a vars=( )
