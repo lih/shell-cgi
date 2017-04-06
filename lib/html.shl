@@ -118,6 +118,7 @@ function post-form() {
     local form
     [ -r "$HTML_FORM_DIR" ] && {
 	if (( $# == 0 )); then
+	    [ "$REQUEST_METHOD" == POST ] || return
 	    form="${POST[form-id]}"
 	else
 	    form="$1"
