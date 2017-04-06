@@ -1,70 +1,12 @@
 #!/bin/bash
+declare -ga JS_LIBS=( ) CSS_LIBS=( )
+declare -g ATTRS= CLASSES= JS_INIT=
+
 function ...() { 
     local ln
     while IFS='' read -r ln; do printf "%s\n" "$ln"; done
     if [ -n "$ln" ]; then printf "%s" "$ln"; fi
 }
-
-declare -A POST COOKIES
-declare -a JS_LIBS=( ) CSS_LIBS=( )
-declare ATTRS= CLASSES= JS_INIT=
-
-IFSBAK="$IFS"
-
-declare -A INCLUDES=( )
-function include() {
-    for dep; do
-        [ "${INCLUDES[$dep]:+x}" == x ] || {
-            echo "Including $dep" >&2
-	    source "lib/$dep.shl"
-            INCLUDES[$dep]=included
-        }
-    done
-}
-
-function parse_cookies() {
-    local -a cookies=( )
-    local cookie
-    IFS="; " cookies=( ${HTTP_COOKIE-;} ) IFS="$IFSBAK"
-    for cookie in "${cookies[@]}"; do
-        case "$cookie" in
-            *=*) COOKIES["${cookie%%=*}"]="${cookie#*=}";;
-        esac
-    done
-}
-function read_input() {
-    local input="$(...)" assoc val
-    local -a vars=( )
-    case "$CONTENT_TYPE" in
-        'multipart/form-data'*)
-            local delim="--${CONTENT_TYPE#*boundary=}" part headers data
-            input="${input#*$delim}"
-            while [[ -n "$input" && "${input:0:2}" != -- ]]; do
-                part="${input%%$delim*}"
-                input="${input#$part}"
-                input="${input#$delim}"
-                headers="${part%%$'\r\n\r\n'*}"
-                data="${part#*$'\r\n\r\n'}"
-                data="${data//$'\r\n'/$'\n'}"
-                postName="${headers#* name=\"}"
-                postName="${postName%%\"*}"
-                POST[$postName]="${data%$'\n'}"
-            done
-            ;;
-        *)
-            local delim=$'\r\n\r\n'
-            IFS='&' vars=( '.=.' ${input#*$delim} ) IFS="$IFSBAK"
-            for assoc in "${vars[@]}"; do
-                val="${assoc#*=}"
-                val="${val//+/ }"
-	        POST[${assoc%%=*}]="$(echo -e "${val//%/\\x}")"
-            done
-            ;;
-    esac
-}
-[ "$REQUEST_METHOD" == POST ] && read_input
-parse_cookies
-
 function tag() { printf "%s" "<$1${CLASSES:+ class=\"$CLASSES\"}$ATTRS>$(ATTRS= CLASSES= "${@:2}")</$1>"; }
 function etag() { printf "%s" "<$1${CLASSES:+ class=\"$CLASSES\"}$ATTRS />"; }
 function with() {
@@ -206,6 +148,3 @@ function form-vars() {
             ;;
     esac
 }
-
-
-
