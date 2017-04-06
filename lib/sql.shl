@@ -1,0 +1,11 @@
+#!/bin/bash
+SQL_ERROR=
+function sql() {
+    local err="$(mktemp)"
+    if mysql --batch --skip-column-names -uroot -p'0clmecLV!a' ComSel 2>"$err" <<EOF
+$*
+EOF
+    then SQL_ERROR=
+    else SQL_ERROR="$(cat "$err")"; rm -f "$err"; return 1; fi
+    rm -f "$err"
+}
