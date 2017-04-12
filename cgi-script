@@ -61,7 +61,7 @@ function include() {
 	    CURRENT_INCLUDE="$dep"
 	    source "lib/$dep.shl" || {
 		if [ ! -e "lib/$dep.shl" ]; then
-		    git pull origin plugin/"$dep"
+		    git pull origin plugin/"$dep" >&2
 		fi
 		source "lib/$dep.shl"
 	    }
