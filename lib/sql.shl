@@ -1,10 +1,5 @@
 #!/bin/bash
-load-config sql <<EOF
-SQL_HOST=localhost 
-SQL_USER=user
-SQL_PASSWORD=password
-SQL_DATABASE_NAME=dbname
-EOF
+plugin-vars SQL_HOST=localhost SQL_USER=user SQL_PASSWORD=password SQL_DATABASE_NAME=dbname
 
 SQL_ERROR=
 function sql() {
