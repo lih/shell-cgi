@@ -68,9 +68,10 @@ function include() {
 function plugin-vars() {
     if source "etc/$CURRENT_INCLUDE.conf"; then :; else
 	mkdir -p "$(dirname "etc/$CURRENT_INCLUDE.conf")"
-	local var i=0 ind vtype=string
+	local var i=0 ind 
 	for var; do
 	    ind=var_$i
+	    vtype=string
 	    case "$var" in
 		*=\(*\[*\]=*\)|*=\(\[\]\)) vtype=hashmap;;
 		*=\(*\)) vtype=array;;
@@ -78,13 +79,17 @@ function plugin-vars() {
 	    if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then
 		case "$vtype" in
 		    string) echo "${var%%=*}=${POST[$ind]}";;
-		    array|hashmap)  echo "${var%%=*}=( ${POST[$ind]} )";;
+		    array)  echo "declare -ga ${var%%=*}; ${var%%=*}=( ${POST[$ind]} )";;
+		    hashmap) echo "declare -gA ${var%%=*}; ${var%%=*}=( ${POST[$ind]} )";;
 		esac >> "etc/$CURRENT_INCLUDE.conf"
 	    else
-		tr :: td text "${vtype^}" :: td with input text "$ind" "${var#*=}"
+		local default="${var#*=}"
+		default="${default#\(}"
+		default="${default%\)}"
+		tr :: td text "${vtype^} ${var%%=*}" :: td with input text "$ind" "$default"
 	    fi
-	    ((i++))
-	done | if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then ...
+	    ((i++)) || :
+	done | if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then :
 	else
 	    header Content-type text/html
 	    echo
@@ -92,6 +97,7 @@ function plugin-vars() {
 	    {
 		input hidden "plugin-name" "$CURRENT_INCLUDE"
 		table ...
+		submit "Configurer le plugin $CURRENT_INCLUDE"
 	    } | html :: head :: body with name="$CURRENT_INCLUDE" method=POST tag form ...
 	    exit
 	fi
