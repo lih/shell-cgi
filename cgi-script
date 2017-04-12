@@ -59,7 +59,12 @@ function include() {
     for dep; do
         [ "${INCLUDES[$dep]:+x}" == x ] || { 
 	    CURRENT_INCLUDE="$dep"
-	    source "lib/$dep.shl"
+	    source "lib/$dep.shl" || {
+		if [ ! -e "lib/$dep.shl" ]; then
+		    git pull origin plugin/"$dep"
+		fi
+		source "lib/$dep.shl"
+	    }
             INCLUDES[$dep]=included
         }
     done
@@ -104,7 +109,5 @@ function plugin-vars() {
 	source "etc/$CURRENT_INCLUDE.conf"
     fi
 }
-
-
 
 source "$1"
