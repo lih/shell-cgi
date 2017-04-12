@@ -94,8 +94,7 @@ function plugin-vars() {
 		tr :: td text "${vtype^} ${var%%=*}" :: td with input text "$ind" "$default"
 	    fi
 	    ((i++)) || :
-	done | if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then :
-	else
+	done | if [ "${POST[plugin-name]:-}" != "$CURRENT_INCLUDE" ]; then 
 	    header Content-type text/html
 	    echo
 	    
@@ -104,8 +103,9 @@ function plugin-vars() {
 		table ...
 		submit "Configurer le plugin $CURRENT_INCLUDE"
 	    } | html :: head :: body with name="$CURRENT_INCLUDE" method=POST tag form ...
-	    exit
 	fi
+
+	if [ "${POST[plugin-name]:-}" != "$CURRENT_INCLUDE" ]; then exit; fi
 	source "etc/$CURRENT_INCLUDE.conf"
     fi
 }
