@@ -55,21 +55,50 @@ parse_cookies
 
 declare -A INCLUDES=( )
 function include() {
-    local dep
+    local dep CURRENT_INCLUDE
     for dep; do
         [ "${INCLUDES[$dep]:+x}" == x ] || { 
+	    CURRENT_INCLUDE="$dep"
 	    source "lib/$dep.shl"
             INCLUDES[$dep]=included
         }
     done
 }
 
-function load-config() {
-    if source "etc/$1.conf"; then :; else
-	mkdir -p etc 
-	cat > "etc/$1.conf"
-	source "etc/$1.conf"
+function plugin-vars() {
+    if source "etc/$CURRENT_INCLUDE.conf"; then :; else
+	mkdir -p "$(dirname "etc/$CURRENT_INCLUDE.conf")"
+	local var i=0 ind vtype=string
+	for var; do
+	    ind=var_$i
+	    case "$var" in
+		*=\(*\[*\]=*\)|*=\(\[\]\)) vtype=hashmap;;
+		*=\(*\)) vtype=array;;
+	    esac
+	    if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then
+		case "$vtype" in
+		    string) echo "${var%%=*}=${POST[$ind]}";;
+		    array|hashmap)  echo "${var%%=*}=( ${POST[$ind]} )";;
+		esac >> "etc/$CURRENT_INCLUDE.conf"
+	    else
+		tr :: td text "${vtype^}" :: td with input text "$ind" "${var#*=}"
+	    fi
+	    ((i++))
+	done | if [ "${POST[plugin-name]:-}" == "$CURRENT_INCLUDE" ]; then ...
+	else
+	    header Content-type text/html
+	    echo
+	    
+	    {
+		input hidden "plugin-name" "$CURRENT_INCLUDE"
+		table ...
+	    } | html :: head :: body with name="$CURRENT_INCLUDE" method=POST tag form ...
+	    exit
+	fi
+	source "etc/$CURRENT_INCLUDE.conf"
     fi
 }
+
+
 
 source "$1"
