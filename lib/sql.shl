@@ -1,0 +1,13 @@
+#!/bin/bash
+plugin-vars SQL_HOST=localhost SQL_USER=user SQL_PASSWORD=password SQL_DATABASE_NAME=dbname
+
+SQL_ERROR=
+function sql() {
+    local err="$(mktemp)"
+    if mysql --batch --skip-column-names -u"$SQL_USER" -h"$SQL_HOST" -p"$SQL_PASSWORD" "$SQL_DATABASE_NAME" 2>"$err" <<EOF
+$*
+EOF
+    then SQL_ERROR=
+    else SQL_ERROR="$(cat "$err")"; rm -f "$err"; return 1; fi
+    rm -f "$err"
+}
