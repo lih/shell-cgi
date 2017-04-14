@@ -44,7 +44,6 @@ function js-::() {
 }
 function js-expr() { "js-$1" "${@:2}"; }
 
-function header() { printf "%s: %s\n" "$1" "${*:2}"; }
 function html() {
     echo "<!DOCTYPE html>"
     tag html "$@"

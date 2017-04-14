@@ -8,6 +8,16 @@ function ...() {
     while IFS='' read -r ln; do printf "%s\n" "$ln"; done
     if [ -n "$ln" ]; then printf "%s" "$ln"; fi
 }
+function header() { printf "%s: %s\n" "$1" "${*:2}"; }
+
+if [[ "$PATH_INFO" == /static/* ]]; then
+    file="static/${PATH_INFO#/static/}"
+    header Content-type $(file --mime-type "$file")
+    header Content-length $(stat -c %s "$file")
+    echo
+    cat "$file"
+    exit
+fi
 
 declare -A POST COOKIES
 function parse_cookies() {
