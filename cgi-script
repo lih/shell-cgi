@@ -71,7 +71,15 @@ function include() {
 	    CURRENT_INCLUDE="$dep"
 	    source "lib/$dep.shl" || {
 		if [ ! -e "lib/$dep.shl" ]; then
-		    git pull origin plugin/"$dep".plugin >&2
+		    (
+			# Some CGI servers omit the HOME variable,
+			# which is needed for Git to find its global
+			# configuration, which in turn is needed to
+			# avoid Git's "fatal" error of having no email
+			# address.
+			eval "export HOME=~$(id -nu)"
+			git pull origin plugin/"$dep".plugin
+		    ) >&2
 		fi
 		source "lib/$dep.shl"
 	    }
